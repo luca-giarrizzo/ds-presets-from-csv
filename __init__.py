@@ -3,10 +3,11 @@ from sd.api.qtforpythonuimgrwrapper import QtForPythonUIMgrWrapper
 from sd.api.sdpackagemgr import SDPackageMgr
 from sd.api.sdgraph import SDGraph
 
+from PySide6.QtGui import QIcon
+
 from functools import partial
 
 from .utilities import getLogger
-from .ui import toolbarIconFactory
 from .presetFromCSV import PresetsFromCSVToolbar
 from .ui_strings import UIStr_toolbarToggleTooltip
 
@@ -19,7 +20,7 @@ CALLBACK_IDS: list[int] = []
 def onGraphViewCreated(graphViewId: int, uiMgrQt: QtForPythonUIMgrWrapper, pkgMgr: SDPackageMgr) -> None:
     graph: SDGraph = uiMgrQt.getGraphFromGraphViewID(graphViewId)
     presetToolbar = PresetsFromCSVToolbar(pkgMgr=pkgMgr, graph=graph)
-    toolbarIcon = toolbarIconFactory()
+    toolbarIcon = QIcon()
     uiMgrQt.addToolbarToGraphView(graphViewId, presetToolbar, toolbarIcon, UIStr_toolbarToggleTooltip)
 
 def initializeSDPlugin():

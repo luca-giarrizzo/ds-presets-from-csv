@@ -1,7 +1,13 @@
+from typing import Any
+from functools import partial
+
 from PySide6 import QtWidgets
-from PySide6.QtWidgets import QToolBar
+from PySide6.QtWidgets import QToolBar, QDialog, QVBoxLayout
+from PySide6.QtCore import Qt
+
 from sd.api.sdpackagemgr import SDPackageMgr
 from sd.api.sdgraph import SDGraph
+
 from .utilities import getLogger
 
 # ---
@@ -14,8 +20,14 @@ class PresetsFromCSVToolbar(QToolBar):
         self.graph = graph
         self.package = self.graph.getPackage()
 
+        self.optionsDialog = PresetsFromCSVDialog()
+
         # Add actions or widgets to the toolbar as needed
         # For example, you can add a button to load presets from a CSV file
+        optionsAction = QtWidgets.QAction("Options", self)
+        optionsAction.triggered.connect(self.optionsDialog.show)
+        self.addAction(optionsAction)
+
         createPresetsAction = QtWidgets.QAction("Load Presets from CSV", self)
         createPresetsAction.triggered.connect(self.createPresetsFromCSV)
         self.addAction(createPresetsAction)
@@ -36,3 +48,133 @@ class PresetsFromCSVToolbar(QToolBar):
         else:
             getLogger().warning("Resource is not a CSV file:", resourcePkgPath)
             return None
+
+class PresetsFromCSVDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle("Presets from CSV")
+        self.setWindowFlags(Qt.FramelessWindowHint)
+
+        self.mainLayout = QVBoxLayout()
+        self.addCSVOptions()
+        self.addColorSeparatorOption()
+        self.addColorValueFormatOption()
+        self.addHasAlphaOption()
+        self.addHasHeaderOption()
+        self.addLabelRowOption()
+        self.addCSVDialectOption()
+
+        self.setLayout(self.mainLayout)
+
+        self.csvOptions: dict[str, Any] = {
+            "colorRow": "1",
+            "colorSeparator": "-",
+            "colorValueFormat": float,
+            "hasAlpha": False,
+            "hasHeader": True,
+            "labelRow": "0",
+            "csvDialect": "excel"
+        }
+
+    class OptionTextEdit(QtWidgets.QTextEdit):
+        def __init__(self, optionIdentifier: str, parent=None):
+            super().__init__(parent)
+            self.optionIdentifier = optionIdentifier
+
+        def focusOutEvent(self, e):
+            self.updateOptions((self.optionIdentifier, self.toPlainText()))
+            super().focusOutEvent(e)
+
+    def addCSVOptions(self):
+        colorRowLayout = QtWidgets.QHBoxLayout()
+        colorRowLabel = QtWidgets.QLabel("Color row:")
+
+        colorRow = PresetsFromCSVDialog.OptionTextEdit("colorRow")
+        colorRow.setText(self.csvOptions["colorRow"])  # Initialise default value
+
+        colorRowLayout.addWidget(colorRowLabel)
+        colorRowLayout.addWidget(colorRow)
+
+    def addColorSeparatorOption(self) -> None:
+        colorSeparatorLayout = QtWidgets.QHBoxLayout()
+        colorSeparatorLabel = QtWidgets.QLabel("Color separator:")
+
+        colorSeparator = PresetsFromCSVDialog.OptionTextEdit("colorSeparator")
+        colorSeparator.setText(self.csvOptions["colorSeparator"])  # Initialise default value
+
+        colorSeparatorLayout.addWidget(colorSeparatorLabel)
+        colorSeparatorLayout.addWidget(colorSeparator)
+        self.mainLayout.addLayout(colorSeparatorLayout)
+
+    def addColorValueFormatOption(self) -> None:
+        colorValueFormatLayout = QtWidgets.QHBoxLayout()
+        colorValueFormatLabel = QtWidgets.QLabel("Color value format:")
+        colorValueFormat = QtWidgets.QComboBox()
+
+        colorValueFormat.addItem("Float", userData=float)
+        colorValueFormat.addItem("Integer", userData=int)
+
+        colorValueFormat.currentIndexChanged.connect(partial(
+            self.updateOptions, key="colorValueFormat", value=colorValueFormat.itemData(colorValueFormat.currentIndex())))
+        colorValueFormat.setCurrentIndex(colorValueFormat.findData(self.csvOptions["colorValueFormat"]))  # Initialise default value
+
+        colorValueFormatLayout.addWidget(colorValueFormatLabel)
+        colorValueFormatLayout.addWidget(colorValueFormat)
+        self.mainLayout.addLayout(colorValueFormatLayout)
+
+    def addHasAlphaOption(self) -> None:
+        hasAlphaLayout = QtWidgets.QHBoxLayout()
+        hasAlphaLabel = QtWidgets.QLabel("Has alpha:")
+
+        hasAlpha = QtWidgets.QCheckBox()
+        hasAlpha.toggled.connect(partial(self.updateOptions, key="hasAlpha", value=hasAlpha.isChecked()))
+        hasAlpha.setChecked(self.csvOptions["hasAlpha"])  # Initialise default value
+
+        hasAlphaLayout.addWidget(hasAlphaLabel)
+        hasAlphaLayout.addWidget(hasAlpha)
+        self.mainLayout.addLayout(hasAlphaLayout)
+
+    def addHasHeaderOption(self) -> None:
+        hasHeaderLayout = QtWidgets.QHBoxLayout()
+        hasHeaderLabel = QtWidgets.QLabel("Has header:")
+
+        hasHeader = QtWidgets.QCheckBox()
+        hasHeader.toggled.connect(partial(self.updateOptions, key="hasHeader", value=hasHeader.isChecked()))
+        hasHeader.setChecked(self.csvOptions["hasHeader"])  # Initialise default value
+
+        hasHeaderLayout.addWidget(hasHeaderLabel)
+        hasHeaderLayout.addWidget(hasHeader)
+        self.mainLayout.addLayout(hasHeaderLayout)
+
+    def addLabelRowOption(self) -> None:
+        # TODO Make label row optional and generate label from color values if not provided
+        labelRowLayout = QtWidgets.QHBoxLayout()
+        labelRowLabel = QtWidgets.QLabel("Label row:")
+
+        labelRow = PresetsFromCSVDialog.OptionTextEdit("labelRow")
+        labelRow.setText(self.csvOptions["labelRow"])  # Initialise default value
+
+        labelRowLayout.addWidget(labelRowLabel)
+        labelRowLayout.addWidget(labelRow)
+        self.mainLayout.addLayout(labelRowLayout)
+
+    def addCSVDialectOption(self) -> None:
+        csvDialectLayout = QtWidgets.QHBoxLayout()
+        csvDialectLabel = QtWidgets.QLabel("CSV dialect:")
+        csvDialect = QtWidgets.QComboBox()
+
+        csvDialect.addItem("Excel", userData="excel")
+        csvDialect.addItem("Excel Tab", userData="excel-tab")
+        csvDialect.addItem("Unix", userData="unix")
+
+        csvDialect.currentIndexChanged.connect(partial(
+            self.updateOptions, key="colorValueFormat", value=csvDialect.itemData(csvDialect.currentIndex())))
+        csvDialect.setCurrentIndex(csvDialect.findData(self.csvOptions["csvDialect"]))  # Initialise default value
+
+        csvDialectLayout.addWidget(csvDialectLabel)
+        csvDialectLayout.addWidget(csvDialect)
+        self.mainLayout.addLayout(csvDialectLayout)
+
+    def updateOptions(self, key: str, value: Any) -> None:
+        self.csvOptions[key] = value
