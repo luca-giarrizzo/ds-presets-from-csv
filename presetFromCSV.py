@@ -88,7 +88,7 @@ class PresetsFromCSVDialog(QDialog):
         }
 
         self.setWindowTitle("Presets from CSV")
-        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup)
 
         self.mainLayout = QVBoxLayout()
         self.addCSVOptions()
@@ -108,7 +108,7 @@ class PresetsFromCSVDialog(QDialog):
         colorRowLayout = QtWidgets.QHBoxLayout()
         colorRowLabel = QtWidgets.QLabel("Color row:")
 
-        colorRow = OptionTextEdit(self, "colorRow")
+        colorRow = OptionTextEdit(self, "colorRow", onlyNumbers=True)
         colorRow.setText(self.csvOptions["colorRow"])  # Initialise default value
 
         colorRowLayout.addWidget(colorRowLabel)
@@ -118,7 +118,7 @@ class PresetsFromCSVDialog(QDialog):
         colorSeparatorLayout = QtWidgets.QHBoxLayout()
         colorSeparatorLabel = QtWidgets.QLabel("Color separator:")
 
-        colorSeparator = OptionTextEdit(self, "colorSeparator")
+        colorSeparator = OptionTextEdit(self, "colorSeparator", onlyNumbers=False)
         colorSeparator.setText(self.csvOptions["colorSeparator"])  # Initialise default value
 
         colorSeparatorLayout.addWidget(colorSeparatorLabel)
@@ -170,7 +170,7 @@ class PresetsFromCSVDialog(QDialog):
         labelRowLayout = QtWidgets.QHBoxLayout()
         labelRowLabel = QtWidgets.QLabel("Label row:")
 
-        labelRow = OptionTextEdit(self, "labelRow")
+        labelRow = OptionTextEdit(self, "labelRow", onlyNumbers=True)
         labelRow.setText(self.csvOptions["labelRow"])  # Initialise default value
 
         labelRowLayout.addWidget(labelRowLabel)
@@ -200,12 +200,25 @@ class PresetsFromCSVDialog(QDialog):
 
 
 class OptionTextEdit(QtWidgets.QTextEdit):
-    def __init__(self, presetDialog: PresetsFromCSVDialog, optionIdentifier: str, parent=None):
+    def __init__(
+            self, presetDialog: PresetsFromCSVDialog, optionIdentifier: str, onlyNumbers: bool = False, parent=None):
         super().__init__(parent)
-        self.setFixedHeight(20)
+        self.setFixedHeight(self.fontMetrics().height())  # Set height to fit a single line of text
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.optionIdentifier = optionIdentifier
         self.presetDialog = presetDialog
+        self.onlyNumbers = onlyNumbers
 
     def focusOutEvent(self, e):
+        # TODO Set option value to default if text is empty
+        # TODO Add visual feedback for invalid input (e.g. red border) without losing focus
         self.presetDialog.updateOptions(self.optionIdentifier, self.toPlainText())
         super().focusOutEvent(e)
+
+    def keyPressEvent(self, e):
+        if e.key() == Qt.Key.Key_Return or e.key() == Qt.Key.Key_Enter:
+            self.clearFocus()  # Trigger focusOutEvent to save the option value
+        elif e.key() == Qt.Key.Key_Backspace:
+            self.clear()
+        elif self.onlyNumbers == e.text().isdigit():
+            self.setText(e.text())
