@@ -2,7 +2,7 @@ from typing import Any
 
 from PySide6 import QtWidgets, QtGui
 from PySide6.QtWidgets import QToolBar, QDialog, QVBoxLayout
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QRect, QPoint
 
 from sd.api.sdpackagemgr import SDPackageMgr
 from sd.api.sdgraph import SDGraph
@@ -24,29 +24,54 @@ class PresetsFromCSVToolbar(QToolBar):
         # Add actions or widgets to the toolbar as needed
         # For example, you can add a button to load presets from a CSV file
         optionsAction = QtGui.QAction("Options", self)
-        optionsAction.triggered.connect(self.optionsDialog.show)
+        optionsAction.triggered.connect(self.displayOptions)
         self.addAction(optionsAction)
 
         createPresetsAction = QtGui.QAction("Load Presets from CSV", self)
         createPresetsAction.triggered.connect(self.createPresetsFromCSV)
         self.addAction(createPresetsAction)
 
-    def createPresetsFromCSV(self):
-        # Implement the logic to load presets from a CSV file
+    def createPresetsFromCSV(self) -> None:
+        # Implement the logic to create presets from a CSV file
         # This is just a placeholder function
         getLogger().info("Creating presets from CSV...")
+        csvFilePaths: list[str] | None = self.findCSVResourcesInPackage()
+        if not csvFilePaths:
+            getLogger().info("No CSV resources found.")
+            return
+        elif len(csvFilePaths) > 1:
+            getLogger().info(f"Multiple CSV resources found: {', '.join(csvFilePaths)}")
+        else:
+            getLogger().info(f"CSV resource found: {csvFilePaths[0]}")
+
+    def findCSVResourcesInPackage(self) -> list[str] | None:
+        resourcePaths: list[str] = []
+        for resource in self.package.getChildrenResources(isRecursive=True):
+            resourceFilepath: str = resource.getFilePath()
+            if resourceFilepath.endswith(".csv"):
+                resourcePaths.append(resourceFilepath)
+        return resourcePaths if resourcePaths else None
 
     def getCSVResourceFilePath(self, resourcePkgPath) -> str | None:
         resource = self.package.findResourceFromUrl(resourcePkgPath)
         if not resource:
-            getLogger().warning("Resource not found:", resourcePkgPath)
+            getLogger().warning(f"Resource not found: {resourcePkgPath}")
             return None
         resourceFilePath: str = resource.getFilePath()
         if resourceFilePath.endswith(".csv"):
             return resourceFilePath
         else:
-            getLogger().warning("Resource is not a CSV file:", resourcePkgPath)
+            getLogger().warning(f"Resource is not a CSV file: {resourcePkgPath}")
             return None
+
+    def displayOptions(self):
+        # zip() function pairs elements by position, sum() adds each pair
+        # and map() applies sum() to all pairs for element-wise tuple addition.
+        self.position = tuple(map(sum, zip(self.mapToGlobal(QPoint(0, 0)).toTuple(), (0, 20))))
+
+        self.optionsDialog.setGeometry(QRect(*self.position, *self.optionsDialog.size))
+        self.optionsDialog.show()
+
 
 class PresetsFromCSVDialog(QDialog):
     def __init__(self, parent=None):
@@ -75,6 +100,9 @@ class PresetsFromCSVDialog(QDialog):
         self.addCSVDialectOption()
 
         self.setLayout(self.mainLayout)
+
+        self.size = (200, 200)
+        self.setFixedSize(*self.size)
 
     def addCSVOptions(self):
         colorRowLayout = QtWidgets.QHBoxLayout()
@@ -168,11 +196,13 @@ class PresetsFromCSVDialog(QDialog):
 
     def updateOptions(self, key: str, value: Any) -> None:
         self.csvOptions[key] = value
+        getLogger().info(f"Updated option {key}: {value}")
 
 
 class OptionTextEdit(QtWidgets.QTextEdit):
     def __init__(self, presetDialog: PresetsFromCSVDialog, optionIdentifier: str, parent=None):
         super().__init__(parent)
+        self.setFixedHeight(20)
         self.optionIdentifier = optionIdentifier
         self.presetDialog = presetDialog
 
