@@ -246,11 +246,16 @@ class PresetsFromCSVDialog(QDialog):
         self.csvOptions = {key: value for key, value in PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS.items()}
 
         getLogger().info("CSV options have been reset.")
+        self.__logCurrentOptions()
 
     def updateOptions(self, key: str, value: Any) -> None:
         self.csvOptions[key] = value
         getLogger().info(f"Updated option {key}: {value}")
+        self.__logCurrentOptions()
 
+    def __logCurrentOptions(self):
+        optionsPrettyPrint = "\n".join([f"  - {key}: {value}" for key, value in self.csvOptions.items()])
+        getLogger().info(f"Current options:\n{optionsPrettyPrint}")
 
 class OptionTextEdit(QtWidgets.QTextEdit):
     def __init__(
