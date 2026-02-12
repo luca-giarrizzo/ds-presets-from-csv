@@ -8,7 +8,7 @@ from sd.api.sdbasetypes import ColorRGBA
 from sd.api.sdpackagemgr import SDPackageMgr
 from sd.api.sdgraph import SDGraph
 
-from .utilities import getLogger, generateColorRGBAPresetsFromCSV, extractColorRGBAFromCSV
+from .utilities import getLogger, generatePresetsFromColors, extractColorsFromCSV, gatherGraphColorParameters
 
 # ---
 
@@ -19,7 +19,7 @@ class PresetsFromCSVToolbar(QToolBar):
         "labelRow": "0",
         "colorRow": "1",
         "colorSeparator": "-",
-        "colorValueFormat": float,
+        "colorValueFormat": int,
         "hasAlpha": False,
         "hasHeader": True
     }
@@ -44,9 +44,9 @@ class PresetsFromCSVToolbar(QToolBar):
         self.addAction(createPresetsAction)
 
     def createPresetsFromCSV(self) -> None:
-        # TODO Implement presets generation
         # TODO Manage presets generation when multiple CSV resources are found
         #   (e.g. generate presets from the first one, or display a list to choose from)
+        # TODO Manage presets generation when multiple compatible graph inputs are found
         getLogger().info("Creating presets from CSV...")
         csvFilePaths: list[str] | str | None = self.findCSVResourcesInPackage()
         if not csvFilePaths:
@@ -57,9 +57,15 @@ class PresetsFromCSVToolbar(QToolBar):
             return None
 
         getLogger().info(f"CSV resource found: {csvFilePaths}")
-        colorsList: list[tuple[str, ColorRGBA]] | None = extractColorRGBAFromCSV(csvFilePaths, self.optionsDialog.csvOptions)
+        colorsList: list[tuple[str, Any]] | None = extractColorsFromCSV(csvFilePaths, self.optionsDialog.csvOptions)
         if colorsList:
             getLogger().info(f"Found {len(colorsList)} colors: " + ", ".join([color[0] for color in colorsList]))
+            colorInputProps = gatherGraphColorParameters(self.graph, self.optionsDialog.csvOptions["hasAlpha"])
+            if colorInputProps:
+                for inputProp in colorInputProps:
+                    generatePresetsFromColors(self.graph, colorsList, inputProp)
+                    break
+            return None
         else:
             getLogger().info("No colors extracted from CSV.")
             return None

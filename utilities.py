@@ -1,9 +1,12 @@
 from typing import Any
 
 import sd
-from sd.api import SDValueColorRGBA
-from sd.api.sdbasetypes import ColorRGBA, float4
+from sd.api import SDValueColorRGBA, SDValueColorRGB
+from sd.api.sdbasetypes import ColorRGBA, ColorRGB
+from sd.api.sdproperty import SDProperty, SDPropertyCategory
 from sd.api.sbs.sdsbscompgraph import SDSBSCompGraph
+from sd.api.sdtypefloat3 import SDTypeFloat3
+from sd.api.sdtypefloat4 import SDTypeFloat4
 
 import csv
 import logging
@@ -26,22 +29,50 @@ def getLogger():
 
 # ---
 
-def generateColorRGBAPresetsFromCSV(
-        graph: SDSBSCompGraph, colorList: list[tuple[str, ColorRGBA]] | None, graphInputIdentifier: str) -> None:
+def generatePresetsFromColors(
+        graph: SDSBSCompGraph,
+        colorList: list[tuple[str, Any]] | None,
+        graphInputIdentifier: str
+) -> None:
   if not colorList:
     getLogger().warning("No colors to generate presets from.")
     return None
   for color in colorList:
+    getLogger().info("Generating presets for color: " + color[0])
+    if isinstance(color[1], ColorRGBA):
+      colorValue = SDValueColorRGBA.sNew(color[1])
+    elif isinstance(color[1], ColorRGB):
+      colorValue = SDValueColorRGB.sNew(color[1])
+    else :
+      getLogger().warning(f"Incorrect type for color {color[0]} ({str(color[1])}) / Skipping...")
+      continue
     preset = graph.newPreset(color[0])
-    preset.addInput(graphInputIdentifier, SDValueColorRGBA.sNew(color[1]))
-    getLogger().info(f"Generated preset: {color[0]}")
+    preset.addInput(graphInputIdentifier, colorValue)
+    getLogger().info(f"Generated preset: {color[0]} / {str(color[1])}")
 
-def extractColorRGBAFromCSV(
-        csvFilePath: str, csvOptions: dict[str, Any]) -> list[tuple[str, ColorRGBA]] | None:
+
+def gatherGraphColorParameters(graph: SDSBSCompGraph, hasAlpha: bool = False) -> dict[str, SDProperty] | None:
+  graphColorParameters: dict[str, SDProperty] = {}
+  targetType = SDTypeFloat4 if hasAlpha else SDTypeFloat3
+  for inputProperty in graph.getProperties(SDPropertyCategory.Input):
+    if isinstance(inputProperty.getType(), targetType) \
+            and graph.getPropertyAnnotationValueFromId(inputProperty, "editor").get() == "color":
+      graphColorParameters[inputProperty.getId()] = inputProperty
+  if graphColorParameters:
+    getLogger().info(
+      "Color inputs:\n" + "\n".join([f"  - {key}: {value}" for key, value in graphColorParameters.items()]))
+    return graphColorParameters
+  else:
+    getLogger().info("No color inputs found.")
+    return None
+
+
+def extractColorsFromCSV(
+        csvFilePath: str, csvOptions: dict[str, Any]) -> list[tuple[str, Any]] | None:
   if not (csvOptions["colorValueFormat"] is float or csvOptions["colorValueFormat"] is int):
     getLogger().error("Invalid color value format specified:", str(csvOptions["colorValueFormat"]))
     return None
-  colors: list[tuple[str, ColorRGBA]] = []
+  colors: list[tuple[str, Any]] = []
   try:
     with open(csvFilePath, "r", encoding="utf-8", newline="") as csvFile:
       csvReader = csv.reader(csvFile, delimiter=",", dialect=csvOptions["csvDialect"])
@@ -60,9 +91,10 @@ def extractColorRGBAFromCSV(
           colorValueList = [float(v) for v in row[int(csvOptions["colorRow"])].split(csvOptions["colorSeparator"])]
         if csvOptions["colorValueFormat"] is int:
           colorValueList = [colorValue / 255.0 for colorValue in colorValueList]
-        if not csvOptions["hasAlpha"]:
-          colorValueList.append(1)  # Add alpha value
-        colors.append((row[int(csvOptions["labelRow"])], ColorRGBA(*colorValueList)))
+        if csvOptions["hasAlpha"]:
+          colors.append((row[int(csvOptions["labelRow"])], ColorRGBA(*colorValueList)))
+        else:
+          colors.append((row[int(csvOptions["labelRow"])], ColorRGB(*colorValueList)))
     return colors
   except Exception as e:
     getLogger().error("ERROR:" + str(e))
