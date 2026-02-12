@@ -4,10 +4,11 @@ from PySide6 import QtWidgets, QtGui
 from PySide6.QtWidgets import QToolBar, QDialog, QVBoxLayout, QComboBox, QTextEdit, QCheckBox, QPushButton
 from PySide6.QtCore import Qt, QRect, QPoint, QSize
 
+from sd.api.sdbasetypes import ColorRGBA
 from sd.api.sdpackagemgr import SDPackageMgr
 from sd.api.sdgraph import SDGraph
 
-from .utilities import getLogger
+from .utilities import getLogger, generateColorRGBAPresetsFromCSV, extractColorRGBAFromCSV
 
 # ---
 
@@ -43,25 +44,39 @@ class PresetsFromCSVToolbar(QToolBar):
         self.addAction(createPresetsAction)
 
     def createPresetsFromCSV(self) -> None:
-        # Implement the logic to create presets from a CSV file
-        # This is just a placeholder function
+        # TODO Implement presets generation
+        # TODO Manage presets generation when multiple CSV resources are found
+        #   (e.g. generate presets from the first one, or display a list to choose from)
         getLogger().info("Creating presets from CSV...")
-        csvFilePaths: list[str] | None = self.findCSVResourcesInPackage()
+        csvFilePaths: list[str] | str | None = self.findCSVResourcesInPackage()
         if not csvFilePaths:
             getLogger().info("No CSV resources found.")
-            return
-        elif len(csvFilePaths) > 1:
+            return None
+        elif isinstance(csvFilePaths, list):
             getLogger().info(f"Multiple CSV resources found: {', '.join(csvFilePaths)}")
-        else:
-            getLogger().info(f"CSV resource found: {csvFilePaths[0]}")
+            return None
 
-    def findCSVResourcesInPackage(self) -> list[str] | None:
+        getLogger().info(f"CSV resource found: {csvFilePaths}")
+        colorsList: list[tuple[str, ColorRGBA]] | None = extractColorRGBAFromCSV(csvFilePaths, self.optionsDialog.csvOptions)
+        if colorsList:
+            getLogger().info(f"Found {len(colorsList)} colors: " + ", ".join([color[0] for color in colorsList]))
+        else:
+            getLogger().info("No colors extracted from CSV.")
+            return None
+
+    def findCSVResourcesInPackage(self) -> list[str] | str | None:
         resourcePaths: list[str] = []
         for resource in self.package.getChildrenResources(isRecursive=True):
             resourceFilepath: str = resource.getFilePath()
             if resourceFilepath.endswith(".csv"):
                 resourcePaths.append(resourceFilepath)
-        return resourcePaths if resourcePaths else None
+        if resourcePaths:
+            if len(resourcePaths) > 1:
+                return resourcePaths
+            else:
+                return resourcePaths[0]
+        else:
+            return None
 
     def getCSVResourceFilePath(self, resourcePkgPath) -> str | None:
         resource = self.package.findResourceFromUrl(resourcePkgPath)
