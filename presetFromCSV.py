@@ -1,6 +1,6 @@
 from PySide6 import QtWidgets, QtGui
-from PySide6.QtWidgets import QToolBar, QDialog, QVBoxLayout, QComboBox, QTextEdit, QCheckBox, QPushButton
-from PySide6.QtCore import Qt, QRect, QPoint, QSize
+from PySide6.QtWidgets import QToolBar, QDialog, QVBoxLayout, QComboBox, QTextEdit, QCheckBox, QPushButton, QSpinBox
+from PySide6.QtCore import Qt, QRect, QPoint
 
 from sd.api.sdpackagemgr import SDPackageMgr
 
@@ -12,8 +12,9 @@ class PresetsFromCSVToolbar(QToolBar):
 
     CSV_OPTIONS_DEFAULTS: dict[str, Any] = {
         "csvDialect": "excel",
-        "labelRow": "0",
-        "colorRow": "1",
+        "hasLabel": True,
+        "labelRow": 0,
+        "colorRow": 1,
         "colorSeparator": "-",
         "colorValueFormat": int,
         "hasAlpha": False,
@@ -85,6 +86,8 @@ class CSVOptionsDialog(QDialog):
         self.csvDialectOption: QComboBox = self.addCSVDialectOption()
         self.labelRowOption: QTextEdit = self.addLabelRowOption()
         self.colorRowOption: QTextEdit = self.addColorRowOption()
+        self.labelRowOption: QSpinBox = self.addLabelRowOption()
+        self.colorRowOption: QSpinBox = self.addColorRowOption()
         self.colorSeparatorOption: QTextEdit = self.addColorSeparatorOption()
         self.colorValueFormatOption: QComboBox = self.addColorValueFormatOption()
         self.hasAlphaOption: QCheckBox = self.addHasAlphaOption()
@@ -93,15 +96,11 @@ class CSVOptionsDialog(QDialog):
 
         self.setLayout(self.mainLayout)
 
-        self.size = (200, 200)
-        self.setFixedSize(*self.size)
-
-    def addColorRowOption(self) -> QTextEdit:
+    def addColorRowOption(self) -> QSpinBox:
         colorRowLayout = QtWidgets.QHBoxLayout()
         colorRowLabel = QtWidgets.QLabel("Color row:")
 
-        colorRow = OptionTextEdit(self, "colorRow", onlyNumbers=True)
-        colorRow.setText(self.csvOptions["colorRow"])  # Initialise default value
+        colorRow = RowSpinBox(presetDialog=self, optionIdentifier="colorRow", parent=self)
 
         colorRowLayout.addWidget(colorRowLabel)
         colorRowLayout.addWidget(colorRow)
@@ -168,13 +167,12 @@ class CSVOptionsDialog(QDialog):
 
         return hasHeader
 
-    def addLabelRowOption(self) -> QTextEdit:
+    def addLabelRowOption(self) -> QSpinBox:
         # TODO Make label row optional and generate label from color values if not provided
         labelRowLayout = QtWidgets.QHBoxLayout()
         labelRowLabel = QtWidgets.QLabel("Label row:")
 
-        labelRow = OptionTextEdit(self, "labelRow", onlyNumbers=True)
-        labelRow.setText(self.csvOptions["labelRow"])  # Initialise default value
+        labelRow = RowSpinBox(presetDialog=self, optionIdentifier="labelRow", parent=self)
 
         labelRowLayout.addWidget(labelRowLabel)
         labelRowLayout.addWidget(labelRow)
@@ -219,9 +217,10 @@ class CSVOptionsDialog(QDialog):
         self.csvDialectOption.setCurrentIndex(self.csvDialectOption.findData(
             PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS["csvDialect"]))
         self.labelRowOption.setText(
+        self.labelRowOption.setValue(
             PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS["labelRow"])
-        self.colorRowOption.setText(
-            str(PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS["colorRow"]))
+        self.colorRowOption.setValue(
+            PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS["colorRow"])
         self.colorSeparatorOption.setText(
             str(PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS["colorSeparator"]))
         self.colorValueFormatOption.setCurrentIndex(self.colorValueFormatOption.findData(
@@ -247,7 +246,7 @@ class CSVOptionsDialog(QDialog):
 
 class OptionTextEdit(QtWidgets.QTextEdit):
     def __init__(
-            self, presetDialog: CSVOptionsDialog, optionIdentifier: str, onlyNumbers: bool = False, parent=None):
+            self, presetDialog: CSVOptionsDialog, optionIdentifier: str, parent=None):
         super().__init__(parent)
         self.setFixedHeight(self.fontMetrics().height())  # Set height to fit a single line of text
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -271,6 +270,24 @@ class OptionTextEdit(QtWidgets.QTextEdit):
             self.clear()
         elif self.onlyNumbers == e.text().isdigit():
             self.setText(e.text())
+        super().keyPressEvent(e)
+
+
+class RowSpinBox(QtWidgets.QSpinBox):
+    def __init__(self, presetDialog: CSVOptionsDialog, optionIdentifier: str, parent=None):
+        super().__init__(parent)
+        self.setSingleStep(1)
+        self.setMinimum(0)
+
+        self.presetDialog = presetDialog
+        self.optionIdentifier = optionIdentifier
+
+        self.setValue(presetDialog.csvOptions[optionIdentifier])  # Initialise default value
+
+    def focusOutEvent(self, e):
+        self.presetDialog.updateOptions(
+            self.optionIdentifier, self.value())
+        super().focusOutEvent(e)
 
 
 class PresetsFromCSVDialog(QDialog):
