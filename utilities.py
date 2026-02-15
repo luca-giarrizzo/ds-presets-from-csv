@@ -7,7 +7,8 @@ from sd.api.sbs.sdsbscompgraph import SDSBSCompGraph
 from sd.api.sdbasetypes import ColorRGBA, ColorRGB
 from sd.api.sdtypefloat3 import SDTypeFloat3
 from sd.api.sdtypefloat4 import SDTypeFloat4
-from sd.api import SDValueColorRGBA, SDValueColorRGB, SDResourceCustom
+from sd.api.sdvaluestring import SDValueString
+from sd.api import SDValueColorRGBA, SDValueColorRGB
 
 import csv
 import logging
@@ -51,20 +52,24 @@ def generatePresetsFromColors(
     preset.addInput(graphInputIdentifier, colorValue)
     getLogger().info(f"Generated preset: {color[0]} / {str(color[1])}")
 
-def gatherGraphColorParameters(graph: SDSBSCompGraph, hasAlpha: bool = False) -> dict[str, SDProperty] | None:
+def gatherGraphColorParameters(graph: SDSBSCompGraph, hasAlpha: bool = False) -> dict[str, SDProperty]:
   graphColorParameters: dict[str, SDProperty] = {}
   targetType = SDTypeFloat4 if hasAlpha else SDTypeFloat3
+
   for inputProperty in graph.getProperties(SDPropertyCategory.Input):
-    if isinstance(inputProperty.getType(), targetType) \
-            and graph.getPropertyAnnotationValueFromId(inputProperty, "editor").get() == "color":
+    inputPropertyEditor: SDValueString | None = graph.getPropertyAnnotationValueFromId(inputProperty, "editor")
+    inputPropertyEditorValue: str = inputPropertyEditor.get() if inputPropertyEditor else ""
+    if isinstance(inputProperty.getType(), targetType) and inputPropertyEditorValue == "color":
       graphColorParameters[inputProperty.getId()] = inputProperty
+
   if graphColorParameters:
     getLogger().info(
       "Color inputs:\n" + "\n".join([f"  - {key}: {value}" for key, value in graphColorParameters.items()]))
     return graphColorParameters
   else:
     getLogger().info("No color inputs found.")
-    return None
+
+  return graphColorParameters
 
 def gatherCSVResourcesPathsInPackage(package: SDPackage) -> dict[str, str]:
     csvResources: dict[str, str] = {}
@@ -108,13 +113,20 @@ def extractColorsFromCSV(
               return None
             colorValueList.append(float(row[rowIndex]))
         else:
+          if int(csvOptions["colorRow"]) >= len(row):
+            getLogger().error(f"Row index {rowIndex} is out of range for CSV row with length {len(row)}.")
+            return None
           colorValueList = [float(v) for v in row[int(csvOptions["colorRow"])].split(csvOptions["colorSeparator"])]
+        if csvOptions["hasLabel"]:
+          colorLabel = row[int(csvOptions["labelRow"])]
+        else:
+          colorLabel = colorValueList[index]
         if csvOptions["colorValueFormat"] is int:
           colorValueList = [colorValue / 255.0 for colorValue in colorValueList]
         if csvOptions["hasAlpha"]:
-          colors.append((row[int(csvOptions["labelRow"])], ColorRGBA(*colorValueList)))
+          colors.append((colorLabel, ColorRGBA(*colorValueList)))
         else:
-          colors.append((row[int(csvOptions["labelRow"])], ColorRGB(*colorValueList)))
+          colors.append((colorLabel, ColorRGB(*colorValueList)))
     return colors
   except Exception as e:
     getLogger().error("ERROR:" + str(e))

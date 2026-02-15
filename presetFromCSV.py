@@ -32,17 +32,17 @@ class PresetsFromCSVToolbar(QToolBar):
         self.presetsFromCSVDialog = PresetsFromCSVDialog()
         self.presetsFromCSVDialog.createPresetsButton.clicked.connect(self.createPresetsFromCSV)
 
-        optionsAction = QtGui.QAction("Options", self)
-        optionsAction.triggered.connect(self.displayOptions)
-        self.addAction(optionsAction)
+        self.optionsAction = QtGui.QAction("Options", self)
+        self.optionsAction.triggered.connect(self.displayOptions)
+        self.addAction(self.optionsAction)
 
-        createPresetsAction = QtGui.QAction("Create presets", self)
-        createPresetsAction.triggered.connect(self.displayPresetsFromCSVDialog)
-        self.addAction(createPresetsAction)
+        self.createPresetsAction = QtGui.QAction("Create presets", self)
+        self.createPresetsAction.triggered.connect(self.displayPresetsFromCSVDialog)
+        self.addAction(self.createPresetsAction)
 
     def createPresetsFromCSV(self) -> None:
         # TODO Handle update of existing presets
-        csvFilePath: dict[str, str] = self.presetsFromCSVDialog.csvResourceCombobox.currentData()
+        csvFilePath: str = self.presetsFromCSVDialog.csvResourceCombobox.currentData()
         colorInputProp: str = self.presetsFromCSVDialog.graphColorCombobox.currentText()
         colorsList: list[tuple[str, Any]] | None = extractColorsFromCSV(csvFilePath, self.optionsDialog.csvOptions)
 
@@ -70,7 +70,10 @@ class PresetsFromCSVToolbar(QToolBar):
             self.graph, hasAlpha=self.optionsDialog.csvOptions["hasAlpha"])
         self.presetsFromCSVDialog.refreshComboboxesLists()
 
-        self.presetsFromCSVDialog.setGeometry(QRect(*self.position, *self.optionsDialog.size))
+        self.presetsFromCSVDialog.createPresetsButton.setEnabled(
+            len(self.presetsFromCSVDialog.csvResourcesFilepaths) > 0 and len(self.presetsFromCSVDialog.graphColorParameters) > 0)
+
+        self.presetsFromCSVDialog.setGeometry(QRect(*self.position, *self.presetsFromCSVDialog.size().toTuple()))
         self.presetsFromCSVDialog.show()
 
 
@@ -113,8 +116,9 @@ class CSVOptionsDialog(QDialog):
         colorSeparatorLayout = QtWidgets.QHBoxLayout()
         colorSeparatorLabel = QtWidgets.QLabel("Color separator:")
 
-        colorSeparator = OptionTextEdit(self, "colorSeparator", onlyNumbers=False)
-        colorSeparator.setText(self.csvOptions["colorSeparator"])  # Initialise default value
+        colorSeparator = OptionTextEdit(
+            presetDialog=self, optionIdentifier="colorSeparator", parent=self)
+
 
         colorSeparatorLayout.addWidget(colorSeparatorLabel)
         colorSeparatorLayout.addWidget(colorSeparator)
@@ -153,6 +157,21 @@ class CSVOptionsDialog(QDialog):
         self.mainLayout.addLayout(hasAlphaLayout)
 
         return hasAlpha
+
+    def addHasLabelOption(self) -> QCheckBox:
+        hasLabelLayout = QtWidgets.QHBoxLayout()
+        hasLabelLabel = QtWidgets.QLabel("Has label:")
+
+        hasLabel = QtWidgets.QCheckBox()
+        hasLabel.toggled.connect(lambda: self.updateOptions("hasLabel", hasLabel.isChecked()))
+        hasLabel.toggled.connect(lambda: self.labelRowOption.setEnabled(hasLabel.isChecked()))
+        hasLabel.setChecked(self.csvOptions["hasLabel"])
+
+        hasLabelLayout.addWidget(hasLabelLabel)
+        hasLabelLayout.addWidget(hasLabel)
+        self.mainLayout.addLayout(hasLabelLayout)
+
+        return hasLabel
 
     def addHasHeaderOption(self) -> QCheckBox:
         hasHeaderLayout = QtWidgets.QHBoxLayout()
@@ -217,7 +236,8 @@ class CSVOptionsDialog(QDialog):
     def resetOptions(self) -> None:
         self.csvDialectOption.setCurrentIndex(self.csvDialectOption.findData(
             PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS["csvDialect"]))
-        self.labelRowOption.setText(
+        self.hasLabelOption.setChecked(
+            PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS["hasLabel"])
         self.labelRowOption.setValue(
             PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS["labelRow"])
         self.colorRowOption.setValue(
@@ -251,14 +271,17 @@ class OptionTextEdit(QtWidgets.QTextEdit):
         super().__init__(parent)
         self.setFixedHeight(self.fontMetrics().height())  # Set height to fit a single line of text
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.optionIdentifier = optionIdentifier
+
         self.presetDialog = presetDialog
-        self.onlyNumbers = onlyNumbers
+        self.optionIdentifier = optionIdentifier
+
+        self.setText(presetDialog.csvOptions[optionIdentifier])  # Initialise default value
 
     def focusOutEvent(self, e):
         # TODO Add visual feedback for invalid input (e.g. red border) without losing focus
-        if self.toPlainText():
-            self.presetDialog.updateOptions(self.optionIdentifier, self.toPlainText())
+        plainText = self.toPlainText()
+        if plainText:
+            self.presetDialog.updateOptions(self.optionIdentifier, plainText)
         else:  # Set option value to default if text is empty
             self.presetDialog.updateOptions(
                 self.optionIdentifier, PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS[self.optionIdentifier])
@@ -333,9 +356,6 @@ class PresetsFromCSVDialog(QDialog):
     def refreshComboboxesLists(self):
         self.graphColorCombobox.clear()
         self.csvResourceCombobox.clear()
-
-        if not self.graphColorParameters or not self.csvResourcesFilepaths:
-            return
 
         for graphColorParameter in self.graphColorParameters:
             parameterLabel = self.graphColorParameters[graphColorParameter].getLabel()
