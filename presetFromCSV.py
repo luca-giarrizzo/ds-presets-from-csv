@@ -56,13 +56,14 @@ class PresetsFromCSVToolbar(QToolBar):
     def displayOptions(self):
         # zip() function pairs elements by position, sum() adds each pair
         # and map() applies sum() to all pairs for element-wise tuple addition.
-        self.position = tuple(map(sum, zip(self.mapToGlobal(QPoint(0, 0)).toTuple(), (0, 20))))
+        self.position = tuple(map(sum, zip(self.mapToGlobal(QPoint(0, 0)).toTuple(), (0, self.size().height()))))
 
-        self.optionsDialog.setGeometry(QRect(*self.position, *self.optionsDialog.size))
+        self.optionsDialog.setGeometry(QRect(*self.position, *self.optionsDialog.size().toTuple()))
         self.optionsDialog.show()
 
     def displayPresetsFromCSVDialog(self):
-        self.position = tuple(map(sum, zip(self.mapToGlobal(QPoint(0, 0)).toTuple(), (0, 20))))
+        # TODO Spawn dialog under toolbar action
+        self.position = tuple(map(sum, zip(self.mapToGlobal(QPoint(0, 0)).toTuple(), (0, self.size().height()))))
 
         self.presetsFromCSVDialog.csvResourcesFilepaths = gatherCSVResourcesPathsInPackage(self.package)
         self.presetsFromCSVDialog.graphColorParameters = gatherGraphColorParameters(
@@ -81,11 +82,11 @@ class CSVOptionsDialog(QDialog):
 
         self.setObjectName("csv-options-dialog")
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup)
+        self.setFixedSize(200, 250)
 
         self.mainLayout = QVBoxLayout()
         self.csvDialectOption: QComboBox = self.addCSVDialectOption()
-        self.labelRowOption: QTextEdit = self.addLabelRowOption()
-        self.colorRowOption: QTextEdit = self.addColorRowOption()
+        self.hasLabelOption: QCheckBox = self.addHasLabelOption()
         self.labelRowOption: QSpinBox = self.addLabelRowOption()
         self.colorRowOption: QSpinBox = self.addColorRowOption()
         self.colorSeparatorOption: QTextEdit = self.addColorSeparatorOption()
@@ -123,7 +124,7 @@ class CSVOptionsDialog(QDialog):
 
     def addColorValueFormatOption(self) -> QComboBox:
         colorValueFormatLayout = QtWidgets.QHBoxLayout()
-        colorValueFormatLabel = QtWidgets.QLabel("Color value format:")
+        colorValueFormatLabel = QtWidgets.QLabel("Color format:")
         colorValueFormat = QtWidgets.QComboBox()
 
         colorValueFormat.addItem("Float", userData=float)
@@ -200,14 +201,14 @@ class CSVOptionsDialog(QDialog):
         return csvDialect
 
     def addResetToDefaultButton(self) -> QPushButton:
-        buttonWidth = 30
         resetToDefaultLayout = QtWidgets.QHBoxLayout()
+        resetToDefaultLayout.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         resetToDefaultButton = QtWidgets.QPushButton("R")
-        resetToDefaultButton.setFixedSize(QSize(buttonWidth, buttonWidth))
+        resetToDefaultButton.setFixedSize(20, 20)
         resetToDefaultButton.clicked.connect(self.resetOptions)
 
-        resetToDefaultLayout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        resetToDefaultLayout.addStretch()
         resetToDefaultLayout.addWidget(resetToDefaultButton)
         self.mainLayout.addLayout(resetToDefaultLayout)
 
@@ -222,7 +223,7 @@ class CSVOptionsDialog(QDialog):
         self.colorRowOption.setValue(
             PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS["colorRow"])
         self.colorSeparatorOption.setText(
-            str(PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS["colorSeparator"]))
+            PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS["colorSeparator"])
         self.colorValueFormatOption.setCurrentIndex(self.colorValueFormatOption.findData(
             PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS["colorValueFormat"]))
         self.hasHeaderOption.setChecked(
@@ -268,8 +269,6 @@ class OptionTextEdit(QtWidgets.QTextEdit):
             self.clearFocus()  # Trigger focusOutEvent to save the option value
         elif e.key() == Qt.Key.Key_Backspace:
             self.clear()
-        elif self.onlyNumbers == e.text().isdigit():
-            self.setText(e.text())
         super().keyPressEvent(e)
 
 
@@ -296,8 +295,7 @@ class PresetsFromCSVDialog(QDialog):
 
         self.setObjectName("presets-from-csv-dialog")
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup)
-        self.size = (200, 200)
-        self.setFixedSize(*self.size)
+        self.setFixedSize(200, 120)
 
         self.csvResourcesFilepaths: dict[str, str] = {}
         self.graphColorParameters: dict[str, SDProperty] = {}
@@ -352,13 +350,13 @@ class PresetsFromCSVDialog(QDialog):
         self.csvResourceCombobox.setCurrentIndex(0)
 
     def addCreatePresetsButton(self) -> QPushButton:
-        buttonWidth = 30
         createPresetsLayout = QtWidgets.QHBoxLayout()
+        createPresetsLayout.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         createPresetsButton = QtWidgets.QPushButton("Create presets")
-        createPresetsButton.setFixedSize(QSize(buttonWidth, buttonWidth))
+        createPresetsButton.setFixedSize(20, 20)
 
-        createPresetsLayout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        createPresetsLayout.addStretch()
         createPresetsLayout.addWidget(createPresetsButton)
         self.mainLayout.addLayout(createPresetsLayout)
 
