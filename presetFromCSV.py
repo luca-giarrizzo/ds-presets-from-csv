@@ -3,7 +3,6 @@ from PySide6.QtWidgets import QToolBar, QDialog, QVBoxLayout, QComboBox, QTextEd
 from PySide6.QtCore import Qt, QRect, QPoint, QSize
 
 from sd.api.sdpackagemgr import SDPackageMgr
-from sd.api.sdgraph import SDGraph
 
 from .utilities import *
 
@@ -21,7 +20,7 @@ class PresetsFromCSVToolbar(QToolBar):
         "hasHeader": True
     }
 
-    def __init__(self, parent, pkgMgr: SDPackageMgr, graph: SDGraph):
+    def __init__(self, parent, pkgMgr: SDPackageMgr, graph: SDSBSCompGraph):
         super().__init__(parent=parent)
         self.setObjectName("PresetsFromCSVToolbar")
         self.__pkgMgr = pkgMgr

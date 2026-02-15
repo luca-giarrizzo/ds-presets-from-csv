@@ -1,4 +1,5 @@
 import sd
+from sd.api import SDSBSCompGraph
 from sd.api.qtforpythonuimgrwrapper import QtForPythonUIMgrWrapper
 from sd.api.sdpackagemgr import SDPackageMgr
 from sd.api.sdgraph import SDGraph
@@ -21,6 +22,8 @@ CALLBACK_IDS: list[int] = []
 
 def onGraphViewCreated(graphViewId: int, uiMgrQt: QtForPythonUIMgrWrapper, pkgMgr: SDPackageMgr) -> None:
     graph: SDGraph = uiMgrQt.getGraphFromGraphViewID(graphViewId)
+    if not isinstance(graph, SDSBSCompGraph):
+        return
     presetToolbar = PresetsFromCSVToolbar(parent=uiMgrQt.getMainWindow(), pkgMgr=pkgMgr, graph=graph)
     getLogger().info("Preset toolbar created:", presetToolbar)
     getLogger().info("Preset toolbar options:", presetToolbar.optionsDialog.csvOptions)
