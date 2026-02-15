@@ -1,12 +1,13 @@
 from typing import Any
 
 import sd
-from sd.api import SDValueColorRGBA, SDValueColorRGB
-from sd.api.sdbasetypes import ColorRGBA, ColorRGB
+from sd.api.sdpackage import SDPackage
 from sd.api.sdproperty import SDProperty, SDPropertyCategory
 from sd.api.sbs.sdsbscompgraph import SDSBSCompGraph
+from sd.api.sdbasetypes import ColorRGBA, ColorRGB
 from sd.api.sdtypefloat3 import SDTypeFloat3
 from sd.api.sdtypefloat4 import SDTypeFloat4
+from sd.api import SDValueColorRGBA, SDValueColorRGB, SDResourceCustom
 
 import csv
 import logging
@@ -50,7 +51,6 @@ def generatePresetsFromColors(
     preset.addInput(graphInputIdentifier, colorValue)
     getLogger().info(f"Generated preset: {color[0]} / {str(color[1])}")
 
-
 def gatherGraphColorParameters(graph: SDSBSCompGraph, hasAlpha: bool = False) -> dict[str, SDProperty] | None:
   graphColorParameters: dict[str, SDProperty] = {}
   targetType = SDTypeFloat4 if hasAlpha else SDTypeFloat3
@@ -65,6 +65,26 @@ def gatherGraphColorParameters(graph: SDSBSCompGraph, hasAlpha: bool = False) ->
   else:
     getLogger().info("No color inputs found.")
     return None
+
+def gatherCSVResourcesPathsInPackage(package: SDPackage) -> dict[str, str]:
+    csvResources: dict[str, str] = {}
+    for resource in package.getChildrenResources(isRecursive=True):
+        resourceFilepath: str = resource.getFilePath()
+        if resourceFilepath.endswith(".csv"):
+            csvResources[resource.getIdentifier()] = resourceFilepath
+    return csvResources
+
+def getCSVResourceFilePath(self, package: SDPackage, resourcePkgPath : str) -> str | None:
+    resource = package.findResourceFromUrl(resourcePkgPath)
+    if not resource:
+        getLogger().warning(f"Resource not found: {resourcePkgPath}")
+        return None
+    resourceFilePath: str = resource.getFilePath()
+    if resourceFilePath.endswith(".csv"):
+        return resourceFilePath
+    else:
+        getLogger().warning(f"Resource is not a CSV file: {resourcePkgPath}")
+        return None
 
 
 def extractColorsFromCSV(

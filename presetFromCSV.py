@@ -1,14 +1,11 @@
-from typing import Any
-
 from PySide6 import QtWidgets, QtGui
 from PySide6.QtWidgets import QToolBar, QDialog, QVBoxLayout, QComboBox, QTextEdit, QCheckBox, QPushButton
 from PySide6.QtCore import Qt, QRect, QPoint, QSize
 
-from sd.api.sdbasetypes import ColorRGBA
 from sd.api.sdpackagemgr import SDPackageMgr
 from sd.api.sdgraph import SDGraph
 
-from .utilities import getLogger, generatePresetsFromColors, extractColorsFromCSV, gatherGraphColorParameters
+from .utilities import *
 
 # ---
 
@@ -31,70 +28,30 @@ class PresetsFromCSVToolbar(QToolBar):
         self.graph = graph
         self.package = self.graph.getPackage()
 
-        self.optionsDialog = PresetsFromCSVDialog()
+        self.optionsDialog = CSVOptionsDialog()
+        self.presetsFromCSVDialog = PresetsFromCSVDialog()
+        self.presetsFromCSVDialog.createPresetsButton.clicked.connect(self.createPresetsFromCSV)
 
-        # Add actions or widgets to the toolbar as needed
-        # For example, you can add a button to load presets from a CSV file
         optionsAction = QtGui.QAction("Options", self)
         optionsAction.triggered.connect(self.displayOptions)
         self.addAction(optionsAction)
 
-        createPresetsAction = QtGui.QAction("Load Presets from CSV", self)
-        createPresetsAction.triggered.connect(self.createPresetsFromCSV)
+        createPresetsAction = QtGui.QAction("Create presets", self)
+        createPresetsAction.triggered.connect(self.displayPresetsFromCSVDialog)
         self.addAction(createPresetsAction)
 
     def createPresetsFromCSV(self) -> None:
-        # TODO Manage presets generation when multiple CSV resources are found
-        #   (e.g. generate presets from the first one, or display a list to choose from)
-        # TODO Manage presets generation when multiple compatible graph inputs are found
-        getLogger().info("Creating presets from CSV...")
-        csvFilePaths: list[str] | str | None = self.findCSVResourcesInPackage()
-        if not csvFilePaths:
-            getLogger().info("No CSV resources found.")
-            return None
-        elif isinstance(csvFilePaths, list):
-            getLogger().info(f"Multiple CSV resources found: {', '.join(csvFilePaths)}")
-            return None
+        # TODO Handle update of existing presets
+        csvFilePath: dict[str, str] = self.presetsFromCSVDialog.csvResourceCombobox.currentData()
+        colorInputProp: str = self.presetsFromCSVDialog.graphColorCombobox.currentText()
+        colorsList: list[tuple[str, Any]] | None = extractColorsFromCSV(csvFilePath, self.optionsDialog.csvOptions)
 
-        getLogger().info(f"CSV resource found: {csvFilePaths}")
-        colorsList: list[tuple[str, Any]] | None = extractColorsFromCSV(csvFilePaths, self.optionsDialog.csvOptions)
         if colorsList:
             getLogger().info(f"Found {len(colorsList)} colors: " + ", ".join([color[0] for color in colorsList]))
-            colorInputProps = gatherGraphColorParameters(self.graph, self.optionsDialog.csvOptions["hasAlpha"])
-            if colorInputProps:
-                for inputProp in colorInputProps:
-                    generatePresetsFromColors(self.graph, colorsList, inputProp)
-                    break
-            return None
+            getLogger().info("Creating presets...")
+            generatePresetsFromColors(self.graph, colorsList, colorInputProp)
         else:
-            getLogger().info("No colors extracted from CSV.")
-            return None
-
-    def findCSVResourcesInPackage(self) -> list[str] | str | None:
-        resourcePaths: list[str] = []
-        for resource in self.package.getChildrenResources(isRecursive=True):
-            resourceFilepath: str = resource.getFilePath()
-            if resourceFilepath.endswith(".csv"):
-                resourcePaths.append(resourceFilepath)
-        if resourcePaths:
-            if len(resourcePaths) > 1:
-                return resourcePaths
-            else:
-                return resourcePaths[0]
-        else:
-            return None
-
-    def getCSVResourceFilePath(self, resourcePkgPath) -> str | None:
-        resource = self.package.findResourceFromUrl(resourcePkgPath)
-        if not resource:
-            getLogger().warning(f"Resource not found: {resourcePkgPath}")
-            return None
-        resourceFilePath: str = resource.getFilePath()
-        if resourceFilePath.endswith(".csv"):
-            return resourceFilePath
-        else:
-            getLogger().warning(f"Resource is not a CSV file: {resourcePkgPath}")
-            return None
+            getLogger().info("No colors found in CSV.")
 
     def displayOptions(self):
         # zip() function pairs elements by position, sum() adds each pair
@@ -104,14 +61,25 @@ class PresetsFromCSVToolbar(QToolBar):
         self.optionsDialog.setGeometry(QRect(*self.position, *self.optionsDialog.size))
         self.optionsDialog.show()
 
+    def displayPresetsFromCSVDialog(self):
+        self.position = tuple(map(sum, zip(self.mapToGlobal(QPoint(0, 0)).toTuple(), (0, 20))))
 
-class PresetsFromCSVDialog(QDialog):
+        self.presetsFromCSVDialog.csvResourcesFilepaths = gatherCSVResourcesPathsInPackage(self.package)
+        self.presetsFromCSVDialog.graphColorParameters = gatherGraphColorParameters(
+            self.graph, hasAlpha=self.optionsDialog.csvOptions["hasAlpha"])
+        self.presetsFromCSVDialog.refreshComboboxesLists()
+
+        self.presetsFromCSVDialog.setGeometry(QRect(*self.position, *self.optionsDialog.size))
+        self.presetsFromCSVDialog.show()
+
+
+class CSVOptionsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
 
         self.csvOptions: dict[str, Any] = {key: value for key, value in PresetsFromCSVToolbar.CSV_OPTIONS_DEFAULTS.items()}
 
-        self.setObjectName("presets-from-csv-dialog")
+        self.setObjectName("csv-options-dialog")
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup)
 
         self.mainLayout = QVBoxLayout()
@@ -280,7 +248,7 @@ class PresetsFromCSVDialog(QDialog):
 
 class OptionTextEdit(QtWidgets.QTextEdit):
     def __init__(
-            self, presetDialog: PresetsFromCSVDialog, optionIdentifier: str, onlyNumbers: bool = False, parent=None):
+            self, presetDialog: CSVOptionsDialog, optionIdentifier: str, onlyNumbers: bool = False, parent=None):
         super().__init__(parent)
         self.setFixedHeight(self.fontMetrics().height())  # Set height to fit a single line of text
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -304,3 +272,78 @@ class OptionTextEdit(QtWidgets.QTextEdit):
             self.clear()
         elif self.onlyNumbers == e.text().isdigit():
             self.setText(e.text())
+
+
+class PresetsFromCSVDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setObjectName("presets-from-csv-dialog")
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup)
+        self.size = (200, 200)
+        self.setFixedSize(*self.size)
+
+        self.csvResourcesFilepaths: dict[str, str] = {}
+        self.graphColorParameters: dict[str, SDProperty] = {}
+
+        self.mainLayout = QVBoxLayout()
+        self.setLayout(self.mainLayout)
+
+        self.csvResourceCombobox: QComboBox = self.addCSVResourceOption()
+        self.graphColorCombobox: QComboBox = self.addGraphColorParametersCombobox()
+        self.createPresetsButton: QPushButton = self.addCreatePresetsButton()
+        self.refreshComboboxesLists()
+
+    def addCSVResourceOption(self) -> QComboBox:
+        csvResourceLayout = QtWidgets.QHBoxLayout()
+        csvResourceLabel = QtWidgets.QLabel("CSV resource:")
+        csvResourceCombobox = QtWidgets.QComboBox()
+
+        csvResourceLayout.addWidget(csvResourceLabel)
+        csvResourceLayout.addWidget(csvResourceCombobox)
+        self.mainLayout.addLayout(csvResourceLayout)
+
+        return csvResourceCombobox
+
+    def addGraphColorParametersCombobox(self) -> QComboBox:
+        graphColorLayout = QtWidgets.QHBoxLayout()
+        graphColorLabel = QtWidgets.QLabel("Color parameter:")
+        graphColorCombobox = QtWidgets.QComboBox()
+
+        graphColorLayout.addWidget(graphColorLabel)
+        graphColorLayout.addWidget(graphColorCombobox)
+        self.mainLayout.addLayout(graphColorLayout)
+
+        return graphColorCombobox
+
+    def refreshComboboxesLists(self):
+        self.graphColorCombobox.clear()
+        self.csvResourceCombobox.clear()
+
+        if not self.graphColorParameters or not self.csvResourcesFilepaths:
+            return
+
+        for graphColorParameter in self.graphColorParameters:
+            parameterLabel = self.graphColorParameters[graphColorParameter].getLabel()
+            if parameterLabel:
+                self.graphColorCombobox.addItem(parameterLabel, userData=self.graphColorParameters[graphColorParameter])
+            else:
+                self.graphColorCombobox.addItem(graphColorParameter, userData=self.graphColorParameters[graphColorParameter])
+        self.graphColorCombobox.setCurrentIndex(0)
+
+        for resourceId, resource in self.csvResourcesFilepaths.items():
+            self.csvResourceCombobox.addItem(resourceId, userData=resource)
+        self.csvResourceCombobox.setCurrentIndex(0)
+
+    def addCreatePresetsButton(self) -> QPushButton:
+        buttonWidth = 30
+        createPresetsLayout = QtWidgets.QHBoxLayout()
+
+        createPresetsButton = QtWidgets.QPushButton("Create presets")
+        createPresetsButton.setFixedSize(QSize(buttonWidth, buttonWidth))
+
+        createPresetsLayout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        createPresetsLayout.addWidget(createPresetsButton)
+        self.mainLayout.addLayout(createPresetsLayout)
+
+        return createPresetsButton
