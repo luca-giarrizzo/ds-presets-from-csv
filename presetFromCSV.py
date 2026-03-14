@@ -341,7 +341,7 @@ class PresetsFromCSVDialog(QDialog):
 
         self.setObjectName("presets-from-csv-dialog")
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Popup)
-        self.setFixedSize(200, 120)
+        self.setFixedSize(200, 180)
 
         self.csvResourcesFilepaths: dict[str, str] = {}
         self.graphColorParameters: dict[str, SDProperty] = {}
@@ -349,11 +349,15 @@ class PresetsFromCSVDialog(QDialog):
         self.mainLayout = QVBoxLayout()
         self.setLayout(self.mainLayout)
 
-        self.csvResourceCombobox: QComboBox = self.addCSVResourceCombobox()
-        self.graphColorCombobox: QComboBox = self.addGraphColorParametersCombobox()
+        self.csvResourceCombobox: QComboBox = QtWidgets.QComboBox()
+        self.addCSVResourceSection()
 
-        self.createPresetsButton: QPushButton = self.addCreatePresetsButton()
-        self.createPaletteButton: QPushButton = self.addCreatePaletteButton()
+        self.graphColorCombobox: QComboBox = QtWidgets.QComboBox()
+        self.createPresetsButton: QPushButton = QtWidgets.QPushButton("Create presets")
+        self.addCreatePresetsSection()
+
+        self.createPaletteButton: QPushButton = QtWidgets.QPushButton("Create palette")
+        self.addCreatePaletteSection()
 
         self.csvResourceCombobox.currentTextChanged.connect(self.refreshButtonStates)
         self.graphColorCombobox.currentTextChanged.connect(self.refreshButtonStates)
@@ -361,27 +365,15 @@ class PresetsFromCSVDialog(QDialog):
         self.refreshComboboxesLists()
         self.refreshButtonStates()
 
-    def addCSVResourceCombobox(self) -> QComboBox:
+    def addCSVResourceSection(self) -> None:
         csvResourceLayout = QtWidgets.QHBoxLayout()
+
+        # CSV resource combobox
         csvResourceLabel = QtWidgets.QLabel("CSV resource:")
-        csvResourceCombobox = QtWidgets.QComboBox()
-
         csvResourceLayout.addWidget(csvResourceLabel)
-        csvResourceLayout.addWidget(csvResourceCombobox)
+        csvResourceLayout.addWidget(self.csvResourceCombobox)
+
         self.mainLayout.addLayout(csvResourceLayout)
-
-        return csvResourceCombobox
-
-    def addGraphColorParametersCombobox(self) -> QComboBox:
-        graphColorLayout = QtWidgets.QHBoxLayout()
-        graphColorLabel = QtWidgets.QLabel("Color parameter:")
-        graphColorCombobox = QtWidgets.QComboBox()
-
-        graphColorLayout.addWidget(graphColorLabel)
-        graphColorLayout.addWidget(graphColorCombobox)
-        self.mainLayout.addLayout(graphColorLayout)
-
-        return graphColorCombobox
 
     def refreshComboboxesLists(self):
         self.graphColorCombobox.clear()
@@ -410,28 +402,34 @@ class PresetsFromCSVDialog(QDialog):
             else:
                 self.createPresetsButton.setEnabled(True)
 
-    def addCreatePresetsButton(self) -> QPushButton:
-        createPresetsLayout = QtWidgets.QHBoxLayout()
-        createPresetsLayout.setAlignment(Qt.AlignmentFlag.AlignRight)
+    def addCreatePresetsSection(self) -> None:
+        createPresetsLayout = QtWidgets.QVBoxLayout()
 
-        createPresetsButton = QtWidgets.QPushButton("Create presets")
-        createPresetsButton.setFixedSize(20, 20)
+        # Title
+        createPresetsLabel = QtWidgets.QLabel("PRESETS")
+        createPresetsLayout.addWidget(createPresetsLabel)
 
-        createPresetsLayout.addStretch()
-        createPresetsLayout.addWidget(createPresetsButton)
+        # Graph input combobox
+        graphColorLayout = QtWidgets.QHBoxLayout()
+        graphColorLabel = QtWidgets.QLabel("Color parameter:")
+        graphColorLayout.addWidget(graphColorLabel)
+        graphColorLayout.addWidget(self.graphColorCombobox)
+        createPresetsLayout.addLayout(graphColorLayout)
+
+        # Create presets button
+        createPresetsLayout.addWidget(self.createPresetsButton)
+
         self.mainLayout.addLayout(createPresetsLayout)
 
-        return createPresetsButton
+    def addCreatePaletteSection(self) -> None:
+        createPaletteLayout = QtWidgets.QVBoxLayout()
 
-    def addCreatePaletteButton(self) -> QPushButton:
-        createPaletteLayout = QtWidgets.QHBoxLayout()
-        createPaletteLayout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        # Title
+        createPaletteLabel = QtWidgets.QLabel("PALETTE")
+        createPaletteLayout.addWidget(createPaletteLabel)
 
-        createPaletteButton = QtWidgets.QPushButton("Create palette")
-        createPaletteButton.setFixedSize(20, 20)
-
-        createPaletteLayout.addStretch()
+        # Create palette button
+        createPaletteButton = self.createPaletteButton
         createPaletteLayout.addWidget(createPaletteButton)
-        self.mainLayout.addLayout(createPaletteLayout)
 
-        return createPaletteButton
+        self.mainLayout.addLayout(createPaletteLayout)
