@@ -9,6 +9,7 @@ from sd.api.sdpackagemgr import SDPackageMgr
 from os import path
 
 from .utilities import *
+from .ui_strings import *
 
 # ---
 
@@ -125,7 +126,7 @@ class CSVOptionsDialog(QDialog):
 
     def addColorRowOption(self) -> QSpinBox:
         colorRowLayout = QtWidgets.QHBoxLayout()
-        colorRowLabel = QtWidgets.QLabel("Color row:")
+        colorRowLabel = QtWidgets.QLabel(UIStr_colorRowLabel)
 
         colorRow = RowSpinBox(presetDialog=self, optionIdentifier="colorRow", parent=self)
 
@@ -137,7 +138,7 @@ class CSVOptionsDialog(QDialog):
 
     def addColorSeparatorOption(self) -> QTextEdit:
         colorSeparatorLayout = QtWidgets.QHBoxLayout()
-        colorSeparatorLabel = QtWidgets.QLabel("Color separator:")
+        colorSeparatorLabel = QtWidgets.QLabel(UIStr_colorSeparatorLabel)
 
         colorSeparator = OptionTextEdit(
             presetDialog=self, optionIdentifier="colorSeparator", parent=self)
@@ -151,7 +152,7 @@ class CSVOptionsDialog(QDialog):
 
     def addColorValueFormatOption(self) -> QComboBox:
         colorValueFormatLayout = QtWidgets.QHBoxLayout()
-        colorValueFormatLabel = QtWidgets.QLabel("Color format:")
+        colorValueFormatLabel = QtWidgets.QLabel(UIStr_colorFormatLabel)
         colorValueFormat = QtWidgets.QComboBox()
 
         colorValueFormat.addItem("Float", userData=float)
@@ -169,7 +170,7 @@ class CSVOptionsDialog(QDialog):
 
     def addHasAlphaOption(self) -> QCheckBox:
         hasAlphaLayout = QtWidgets.QHBoxLayout()
-        hasAlphaLabel = QtWidgets.QLabel("Has alpha:")
+        hasAlphaLabel = QtWidgets.QLabel(UIStr_hasAlphaLabel)
 
         hasAlpha = QtWidgets.QCheckBox()
         hasAlpha.toggled.connect(lambda: self.updateOptions("hasAlpha", hasAlpha.isChecked()))
@@ -183,7 +184,7 @@ class CSVOptionsDialog(QDialog):
 
     def addHasLabelOption(self) -> QCheckBox:
         hasLabelLayout = QtWidgets.QHBoxLayout()
-        hasLabelLabel = QtWidgets.QLabel("Has label:")
+        hasLabelLabel = QtWidgets.QLabel(UIStr_hasLabelLabel)
 
         hasLabel = QtWidgets.QCheckBox()
         hasLabel.toggled.connect(lambda: self.updateOptions("hasLabel", hasLabel.isChecked()))
@@ -198,7 +199,7 @@ class CSVOptionsDialog(QDialog):
 
     def addHasHeaderOption(self) -> QCheckBox:
         hasHeaderLayout = QtWidgets.QHBoxLayout()
-        hasHeaderLabel = QtWidgets.QLabel("Has header:")
+        hasHeaderLabel = QtWidgets.QLabel(UIStr_hasHeaderLabel)
 
         hasHeader = QtWidgets.QCheckBox()
         hasHeader.toggled.connect(lambda: self.updateOptions("hasHeader", hasHeader.isChecked()))
@@ -213,7 +214,7 @@ class CSVOptionsDialog(QDialog):
     def addLabelRowOption(self) -> QSpinBox:
         # TODO Make label row optional and generate label from color values if not provided
         labelRowLayout = QtWidgets.QHBoxLayout()
-        labelRowLabel = QtWidgets.QLabel("Label row:")
+        labelRowLabel = QtWidgets.QLabel(UIStr_labelRowLabel)
 
         labelRow = RowSpinBox(presetDialog=self, optionIdentifier="labelRow", parent=self)
 
@@ -225,7 +226,7 @@ class CSVOptionsDialog(QDialog):
 
     def addCSVDialectOption(self) -> QComboBox:
         csvDialectLayout = QtWidgets.QHBoxLayout()
-        csvDialectLabel = QtWidgets.QLabel("CSV dialect:")
+        csvDialectLabel = QtWidgets.QLabel(UIStr_csvDialectLabel)
         csvDialect = QComboBox()
 
         csvDialect.addItem("Excel", userData="excel")
@@ -248,6 +249,7 @@ class CSVOptionsDialog(QDialog):
 
         resetToDefaultButton = QtWidgets.QPushButton("R")
         resetToDefaultButton.setFixedSize(20, 20)
+        resetToDefaultButton = QtWidgets.QPushButton(UIStr_optionsResetButton)
         resetToDefaultButton.clicked.connect(self.resetOptions)
 
         resetToDefaultLayout.addStretch()
@@ -353,10 +355,10 @@ class PresetsFromCSVDialog(QDialog):
         self.addCSVResourceSection()
 
         self.graphColorCombobox: QComboBox = QtWidgets.QComboBox()
-        self.createPresetsButton: QPushButton = QtWidgets.QPushButton("Create presets")
+        self.createPresetsButton: QPushButton = QtWidgets.QPushButton(UIStr_createPresetsButton)
         self.addCreatePresetsSection()
 
-        self.createPaletteButton: QPushButton = QtWidgets.QPushButton("Create palette")
+        self.createPaletteButton: QPushButton = QtWidgets.QPushButton(UIStr_createPaletteButton)
         self.addCreatePaletteSection()
 
         self.csvResourceCombobox.currentTextChanged.connect(self.refreshButtonStates)
@@ -369,7 +371,7 @@ class PresetsFromCSVDialog(QDialog):
         csvResourceLayout = QtWidgets.QHBoxLayout()
 
         # CSV resource combobox
-        csvResourceLabel = QtWidgets.QLabel("CSV resource:")
+        csvResourceLabel = QtWidgets.QLabel(UIStr_csvResourceLabel)
         csvResourceLayout.addWidget(csvResourceLabel)
         csvResourceLayout.addWidget(self.csvResourceCombobox)
 
@@ -406,12 +408,12 @@ class PresetsFromCSVDialog(QDialog):
         createPresetsLayout = QtWidgets.QVBoxLayout()
 
         # Title
-        createPresetsLabel = QtWidgets.QLabel("PRESETS")
+        createPresetsLabel = QtWidgets.QLabel("<b>" + UIStr_createPresetsSection + "</b>")
         createPresetsLayout.addWidget(createPresetsLabel)
 
         # Graph input combobox
         graphColorLayout = QtWidgets.QHBoxLayout()
-        graphColorLabel = QtWidgets.QLabel("Color parameter:")
+        graphColorLabel = QtWidgets.QLabel(UIStr_colorParameterLabel)
         graphColorLayout.addWidget(graphColorLabel)
         graphColorLayout.addWidget(self.graphColorCombobox)
         createPresetsLayout.addLayout(graphColorLayout)
@@ -425,7 +427,7 @@ class PresetsFromCSVDialog(QDialog):
         createPaletteLayout = QtWidgets.QVBoxLayout()
 
         # Title
-        createPaletteLabel = QtWidgets.QLabel("PALETTE")
+        createPaletteLabel = QtWidgets.QLabel("<b>" + UIStr_createPaletteSection + "</b>")
         createPaletteLayout.addWidget(createPaletteLabel)
 
         # Create palette button
